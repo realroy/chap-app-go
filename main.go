@@ -14,6 +14,15 @@ type templateHandler struct {
 	template *template.Template
 }
 
+func newRoom() *room {
+	return &room{
+		forward: make(chan []byte),
+		join:    make(chan *client),
+		leave:   make(chan *client),
+		clients: make(map[*client]bool),
+	}
+}
+
 func (t *templateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	t.once.Do(func() {
 		t.template = template.Must(template.ParseFiles(filepath.Join("templates", t.filename)))
@@ -22,7 +31,11 @@ func (t *templateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	r := newRoom()
 	http.Handle("/", &templateHandler{filename: "chat.html"})
+	http.Handle("/room", r)
+	go r.run()
+
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal("ListenAndServe:", err)
 	}
